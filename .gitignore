@@ -1,0 +1,8 @@
+*.zip
+.zip
+*.tar
+.tar
+venv
+env
+.venv
+.env

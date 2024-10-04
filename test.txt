@@ -1,0 +1,20 @@
+docker pull docker.elastic.co/elasticsearch/elasticsearch:8.15.1
+docker pull elastic/elasticsearch:8.15.1
+docker pull elastic/kibana:8.15.1
+docker pull confluentinc/cp-zookeeper:latest
+docker pull confluentinc/cp-kafka:latest
+docker pull neo4j:5.20.0
+
+
+mkdir image
+docker save -o image/elk1.tar docker.elastic.co/elasticsearch/elasticsearch:8.15.1
+docker save -o image/elk2.tar elastic/elasticsearch:8.15.1
+docker save -o image/elk3.tar elastic/kibana:8.15.1
+docker save -o image/elk4.tar confluentinc/cp-zookeeper:latest
+docker save -o image/elk5.tar confluentinc/cp-kafka:latest
+docker save -o image/elk6.tar neo4j:5.20.0
+docker elk.zip image -r
+
+10023
+-
+10030
