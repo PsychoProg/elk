@@ -3,7 +3,7 @@ import json
 
 # Initialize Kafka producer to connect to your remote server via NGINX
 producer = KafkaProducer(
-    bootstrap_servers='185.123.68.48:10023',  # Replace with your server IP and NGINX port
+    bootstrap_servers='192.168.35.5:9092',  # Replace with your server IP and NGINX port
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 

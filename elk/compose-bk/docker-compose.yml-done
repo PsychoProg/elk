@@ -1,0 +1,183 @@
+version: "3.8"
+
+services:
+  # setup:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.15.1
+  #   volumes:
+  #     - certs:/usr/share/elasticsearch/config/certs
+  #   user: "0"
+  #   command: >
+  #     bash -c '
+  #       if [ x${ELASTIC_PASSWORD} == x ]; then
+  #         echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
+  #         exit 1;
+  #       elif [ x${KIBANA_PASSWORD} == x ]; then
+  #         echo "Set the KIBANA_PASSWORD environment variable in the .env file";
+  #         exit 1;
+  #       fi;
+  #       if [ ! -f config/certs/ca.zip ]; then
+  #         echo "Creating CA";
+  #         bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+  #         unzip config/certs/ca.zip -d config/certs;
+  #       fi;
+  #       if [ ! -f config/certs/certs.zip ]; then
+  #         echo "Creating certs";
+  #         echo -ne \
+  #         "instances:\n"\
+  #         "  - name: kibana\n"\
+  #         "    dns:\n"\
+  #         "      - kibana\n"\
+  #         "      - localhost\n"\
+  #         "    ip:\n"\
+  #         "      - 127.0.0.1\n"\
+  #         > config/certs/instances.yml;
+  #         bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+  #         unzip config/certs/certs.zip -d config/certs;
+  #       fi;
+  #       echo "Setting file permissions"
+  #       chown -R root:root config/certs;
+  #       find . -type d -exec chmod 750 \{\} \;;
+  #       find . -type f -exec chmod 640 \{\} \;;
+  #       echo "All done!";
+  #     '
+  #   networks:
+  #     - esdata
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "[ -f config/certs/kibana/kibana.crt ]"]
+  #     interval: 1s
+  #     timeout: 5s
+  #     retries: 120
+
+  # es01:
+  #   container_name: "elastic"
+  #   depends_on:
+  #     setup:
+  #       condition: service_healthy
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.15.1
+  #   labels:
+  #     co.elastic.logs/module: elasticsearch
+  #   volumes:
+  #     - esdata01:/usr/share/elasticsearch/data
+  #   ports:
+  #     - "9200:9200"
+  #   environment:
+  #     - node.name=es01
+  #     - cluster.name=${CLUSTER_NAME}
+  #     - discovery.type=single-node
+  #     - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+  #     - bootstrap.memory_lock=true
+  #     - xpack.security.enabled=true
+  #     - xpack.security.http.ssl.enabled=false
+  #     - xpack.license.self_generated.type=${LICENSE}
+  #   mem_limit: ${ES_MEM_LIMIT}
+  #   ulimits:
+  #     memlock:
+  #       soft: -1
+  #       hard: -1
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "curl -s http://localhost:9200 | grep -q 'missing authentication credentials'",
+  #       ]
+  #     interval: 10s
+  #     timeout: 10s
+  #     retries: 120
+  #   networks:
+  #     - esdata
+
+  # kibana:
+  #   container_name: 'kibana'
+  #   depends_on:
+  #     es01:
+  #       condition: service_healthy
+  #   image: elastic/kibana:8.15.1
+  #   labels:
+  #     co.elastic.logs/module: kibana
+  #   volumes:
+  #     - certs:/usr/share/kibana/config/certs
+  #     - kibanadata:/usr/share/kibana/data
+  #   ports:
+  #     - "5601:5601"
+  #   environment:
+  #     - SERVERNAME=kibana
+  #     - ELASTICSEARCH_HOSTS=http://es01:9200
+  #     - ELASTICSEARCH_USERNAME=kibana_system
+  #     - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+  #     - XPACK_SECURITY_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+  #     - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+  #     - XPACK_REPORTING_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+  #     - SERVER_SSL_ENABLED=true
+  #     - SERVER_SSL_CERTIFICATE=/usr/share/kibana/config/certs/kibana/kibana.crt
+  #     - SERVER_SSL_KEY=/usr/share/kibana/config/certs/kibana/kibana.key
+  #   mem_limit: ${KB_MEM_LIMIT}
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "curl -s -I https://localhost:5601 --cacert /usr/share/kibana/config/certs/ca/ca.crt | grep -q 'HTTP/1.1 302 Found'",
+  #       ]
+  #     interval: 10s
+  #     timeout: 10s
+  #     retries: 120
+  #   networks:
+  #     - esdata
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: "zookeeper"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - esdata
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: "kafka"
+    ports:
+      - "9092:9092"  # Internal port
+      - "9093:9092"  # External port (your specified port)
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9092,OUTSIDE://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://127.0.0.1:9092,OUTSIDE://192.168.35.5:9093  # Advertise server IP
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT,INSIDE:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+    networks:
+      - esdata
+
+  # neo4j:
+  #   image: neo4j:5.20.0
+  #   container_name: 'neo4j'
+  #   volumes:
+  #     - ./neo4j/data:/data'
+  #     - ./neo4j/conf/:/conf/'
+  #   ports:
+  #     - 7474:7474
+  #     - 7687:7687
+  #   environment:
+  #     - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}
+  #     - NEO4J_apoc_export_file_enabled=true
+  #     - NEO4J_apoc_import_file_enabled=true
+  #     - NEO4J_apoc_import_file_use__neo4j__config=true
+  #     - NEO4J_PLUGINS=["apoc", "graph-data-science"]
+  #   restart: on-failure
+  #   command: neo4j
+  #   networks:
+  #     - esdata
+    
+
+networks:
+  esdata:
+    driver: bridge
+
+# volumes:
+#   certs:
+#     driver: local
+#   esdata01:
+#     driver: local
+#   kibanadata:
+#     driver: local

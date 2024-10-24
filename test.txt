@@ -18,3 +18,16 @@ docker elk.zip image -r
 10023
 -
 10030
+
+curl -X POST -u "elastic:BGHwqThRP_TEAg+f0gQ7" -H "Content-Type: application/json" \
+http://localhost:9200/_security/user/kibana_system/_password \
+-d '{"password":"changeme"}'
+
+
+curl -X POST http://188.165.126.234:19200/_bulk?pretty \
+  -H "Authorization: ApiKey eFN5NFo1SUJvcmFkTkNsZjRRUWQ6UjhPT2JmQVhSY3kxTEZROWc1ekRaZw==" \
+  -H "Content-Type: application/json" \
+  -d'
+{ "index" : { "_index" : "test" } }
+{"name": "foo", "title": "bar" }
+'
